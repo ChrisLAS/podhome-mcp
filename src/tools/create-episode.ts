@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { validateURL, validateISO8601 } from '../utils.js';
+import { resolvePodhomeApiKey, validateURL, validateISO8601 } from '../utils.js';
 import type { CreateEpisodeInput, CreateEpisodeOutput } from '../types.js';
 
 export const createEpisodeTool = {
@@ -15,6 +15,14 @@ export const createEpisodeTool = {
       title: {
         type: 'string',
         description: 'Episode title'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       },
       description: {
         type: 'string',
@@ -86,7 +94,7 @@ export async function handleCreateEpisode(args: CreateEpisodeInput): Promise<{ c
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   const result: CreateEpisodeOutput = await client.createEpisode(args);
 
   return {

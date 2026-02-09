@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { validateUUID, formatEpisodeNumber, formatDuration } from '../utils.js';
+import { resolvePodhomeApiKey, validateUUID, formatEpisodeNumber, formatDuration } from '../utils.js';
 import type { GetEpisodeInput, Episode } from '../types.js';
 
 export const getEpisodeTool = {
@@ -11,6 +11,14 @@ export const getEpisodeTool = {
       episode_id: {
         type: 'string',
         description: 'UUID'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       },
       include_transcript: {
         type: 'boolean'
@@ -42,7 +50,7 @@ export async function handleGetEpisode(args: GetEpisodeInput): Promise<{ content
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   const episode: Episode = await client.getEpisode(
     args.episode_id,
     args.include_transcript,

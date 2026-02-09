@@ -118,23 +118,69 @@
             
             # Required environment variables
             podhomeApiKey = mkOption {
-              type = types.str;
-              description = "Podhome API key (required). Get from https://podhome.fm/settings/api";
+              type = types.nullOr types.str;
+              default = null;
+              description = "Podhome API key (optional if using podhomeApiKeyFile/podhomeApiKeys). Get from https://podhome.fm/settings/api";
+            };
+
+            podhomeApiKeyFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Path to a file containing the Podhome API key (optional).";
+            };
+
+            podhomeApiKeys = mkOption {
+              type = types.nullOr (types.attrsOf types.str);
+              default = null;
+              description = "Named Podhome API keys (optional). Exposed via PODHOME_API_KEYS JSON.";
+            };
+
+            podhomeApiKeysFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Path to a JSON file of named Podhome API keys (optional).";
+            };
+
+            podhomeApiKeysDir = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Directory containing Podhome API key files (optional). Filename (minus extension) becomes the key name.";
             };
             
             cloudflareAccountId = mkOption {
-              type = types.str;
-              description = "Cloudflare account ID for R2 access (required).";
+              type = types.nullOr types.str;
+              default = null;
+              description = "Cloudflare account ID for R2 access (optional if using cloudflareAccountIdFile).";
+            };
+
+            cloudflareAccountIdFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Path to a file containing the Cloudflare account ID (optional).";
             };
             
             cloudflareR2AccessKeyId = mkOption {
-              type = types.str;
-              description = "Cloudflare R2 access key ID (required).";
+              type = types.nullOr types.str;
+              default = null;
+              description = "Cloudflare R2 access key ID (optional if using cloudflareR2AccessKeyIdFile).";
+            };
+
+            cloudflareR2AccessKeyIdFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Path to a file containing the Cloudflare R2 access key ID (optional).";
             };
             
             cloudflareR2SecretAccessKey = mkOption {
-              type = types.str;
-              description = "Cloudflare R2 secret access key (required).";
+              type = types.nullOr types.str;
+              default = null;
+              description = "Cloudflare R2 secret access key (optional if using cloudflareR2SecretAccessKeyFile).";
+            };
+
+            cloudflareR2SecretAccessKeyFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Path to a file containing the Cloudflare R2 secret access key (optional).";
             };
             
             # Optional environment variables
@@ -192,6 +238,38 @@
           };
           
           config = mkIf cfg.enable {
+            assertions =
+              let
+                countTrue = items: length (filter (item: item) items);
+              in
+              [
+                {
+                  assertion = countTrue [
+                    (cfg.podhomeApiKey != null)
+                    (cfg.podhomeApiKeyFile != null)
+                    (cfg.podhomeApiKeys != null)
+                    (cfg.podhomeApiKeysFile != null)
+                    (cfg.podhomeApiKeysDir != null)
+                  ] >= 1;
+                  message = "services.podhome-mcp requires at least one Podhome API key source (podhomeApiKey, podhomeApiKeyFile, podhomeApiKeys, podhomeApiKeysFile, or podhomeApiKeysDir).";
+                }
+                {
+                  assertion = countTrue [ (cfg.podhomeApiKey != null) (cfg.podhomeApiKeyFile != null) ] <= 1;
+                  message = "services.podhome-mcp: only one of podhomeApiKey or podhomeApiKeyFile may be set.";
+                }
+                {
+                  assertion = countTrue [ (cfg.cloudflareAccountId != null) (cfg.cloudflareAccountIdFile != null) ] == 1;
+                  message = "services.podhome-mcp requires exactly one of cloudflareAccountId or cloudflareAccountIdFile.";
+                }
+                {
+                  assertion = countTrue [ (cfg.cloudflareR2AccessKeyId != null) (cfg.cloudflareR2AccessKeyIdFile != null) ] == 1;
+                  message = "services.podhome-mcp requires exactly one of cloudflareR2AccessKeyId or cloudflareR2AccessKeyIdFile.";
+                }
+                {
+                  assertion = countTrue [ (cfg.cloudflareR2SecretAccessKey != null) (cfg.cloudflareR2SecretAccessKeyFile != null) ] == 1;
+                  message = "services.podhome-mcp requires exactly one of cloudflareR2SecretAccessKey or cloudflareR2SecretAccessKeyFile.";
+                }
+              ];
             # Create user and group
             users.users.${cfg.user} = {
               isSystemUser = true;
@@ -213,13 +291,31 @@
               wantedBy = [ "multi-user.target" ];
               
               environment = {
-                PODHOME_API_KEY = cfg.podhomeApiKey;
-                CLOUDFLARE_ACCOUNT_ID = cfg.cloudflareAccountId;
-                CLOUDFLARE_R2_ACCESS_KEY_ID = cfg.cloudflareR2AccessKeyId;
-                CLOUDFLARE_R2_SECRET_ACCESS_KEY = cfg.cloudflareR2SecretAccessKey;
                 MCP_PORT = toString cfg.port;
                 MCP_HOST = cfg.host;
                 LOG_LEVEL = cfg.logLevel;
+              } // optionalAttrs (cfg.podhomeApiKey != null) {
+                PODHOME_API_KEY = cfg.podhomeApiKey;
+              } // optionalAttrs (cfg.podhomeApiKeyFile != null) {
+                PODHOME_API_KEY_FILE = cfg.podhomeApiKeyFile;
+              } // optionalAttrs (cfg.podhomeApiKeys != null) {
+                PODHOME_API_KEYS = builtins.toJSON cfg.podhomeApiKeys;
+              } // optionalAttrs (cfg.podhomeApiKeysFile != null) {
+                PODHOME_API_KEYS_FILE = cfg.podhomeApiKeysFile;
+              } // optionalAttrs (cfg.podhomeApiKeysDir != null) {
+                PODHOME_API_KEYS_DIR = cfg.podhomeApiKeysDir;
+              } // optionalAttrs (cfg.cloudflareAccountId != null) {
+                CLOUDFLARE_ACCOUNT_ID = cfg.cloudflareAccountId;
+              } // optionalAttrs (cfg.cloudflareAccountIdFile != null) {
+                CLOUDFLARE_ACCOUNT_ID_FILE = cfg.cloudflareAccountIdFile;
+              } // optionalAttrs (cfg.cloudflareR2AccessKeyId != null) {
+                CLOUDFLARE_R2_ACCESS_KEY_ID = cfg.cloudflareR2AccessKeyId;
+              } // optionalAttrs (cfg.cloudflareR2AccessKeyIdFile != null) {
+                CLOUDFLARE_R2_ACCESS_KEY_ID_FILE = cfg.cloudflareR2AccessKeyIdFile;
+              } // optionalAttrs (cfg.cloudflareR2SecretAccessKey != null) {
+                CLOUDFLARE_R2_SECRET_ACCESS_KEY = cfg.cloudflareR2SecretAccessKey;
+              } // optionalAttrs (cfg.cloudflareR2SecretAccessKeyFile != null) {
+                CLOUDFLARE_R2_SECRET_ACCESS_KEY_FILE = cfg.cloudflareR2SecretAccessKeyFile;
               } // optionalAttrs (cfg.r2PublicDomain != null) {
                 R2_PUBLIC_DOMAIN = cfg.r2PublicDomain;
               } // optionalAttrs (cfg.podhomeBaseUrl != null) {

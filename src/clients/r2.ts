@@ -1,6 +1,7 @@
 import { S3Client, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { R2PublicUrlInput, R2PublicUrlOutput } from '../types.js';
+import { readRequiredEnvOrFile } from '../utils.js';
 
 export class R2Client {
   private client: S3Client;
@@ -8,20 +9,22 @@ export class R2Client {
   private publicDomain?: string;
 
   constructor() {
-    this.accountId = process.env.CLOUDFLARE_ACCOUNT_ID || '';
-    const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || '';
-    const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || '';
+    this.accountId = readRequiredEnvOrFile(
+      'CLOUDFLARE_ACCOUNT_ID',
+      'CLOUDFLARE_ACCOUNT_ID_FILE',
+      'CLOUDFLARE_ACCOUNT_ID'
+    );
+    const accessKeyId = readRequiredEnvOrFile(
+      'CLOUDFLARE_R2_ACCESS_KEY_ID',
+      'CLOUDFLARE_R2_ACCESS_KEY_ID_FILE',
+      'CLOUDFLARE_R2_ACCESS_KEY_ID'
+    );
+    const secretAccessKey = readRequiredEnvOrFile(
+      'CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+      'CLOUDFLARE_R2_SECRET_ACCESS_KEY_FILE',
+      'CLOUDFLARE_R2_SECRET_ACCESS_KEY'
+    );
     this.publicDomain = process.env.R2_PUBLIC_DOMAIN;
-
-    if (!this.accountId) {
-      throw new Error('CLOUDFLARE_ACCOUNT_ID environment variable is required');
-    }
-    if (!accessKeyId) {
-      throw new Error('CLOUDFLARE_R2_ACCESS_KEY_ID environment variable is required');
-    }
-    if (!secretAccessKey) {
-      throw new Error('CLOUDFLARE_R2_SECRET_ACCESS_KEY environment variable is required');
-    }
 
     this.client = new S3Client({
       region: 'auto',

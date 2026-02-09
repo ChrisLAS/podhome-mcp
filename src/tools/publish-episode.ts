@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { validateUUID, validateISO8601 } from '../utils.js';
+import { resolvePodhomeApiKey, validateUUID, validateISO8601 } from '../utils.js';
 import type { PublishEpisodeInput, PublishEpisodeOutput } from '../types.js';
 
 export const publishEpisodeTool = {
@@ -11,6 +11,14 @@ export const publishEpisodeTool = {
       episode_id: {
         type: 'string',
         description: 'UUID from create_episode'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       },
       publish_now: {
         type: 'boolean',
@@ -50,7 +58,7 @@ export async function handlePublishEpisode(args: PublishEpisodeInput): Promise<{
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   const result: PublishEpisodeOutput = await client.publishEpisode(args);
 
   return {

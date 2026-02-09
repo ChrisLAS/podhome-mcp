@@ -15,6 +15,8 @@ export interface R2PublicUrlOutput {
 export interface CreateEpisodeInput {
   file_url: string;
   title: string;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
   description?: string;
   episode_nr?: number;
   season_nr?: number;
@@ -33,6 +35,8 @@ export interface CreateEpisodeOutput {
 
 export interface PublishEpisodeInput {
   episode_id: string;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
   publish_now?: boolean;
   publish_date?: string;
 }
@@ -45,6 +49,8 @@ export interface PublishEpisodeOutput {
 
 export interface ListEpisodesInput {
   status?: number;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
   include_transcript?: boolean;
   include_chapters?: boolean;
   include_downloads?: boolean;
@@ -81,6 +87,8 @@ export interface Episode {
 
 export interface GetEpisodeInput {
   episode_id: string;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
   include_transcript?: boolean;
   include_chapters?: boolean;
   include_downloads?: boolean;
@@ -89,6 +97,8 @@ export interface GetEpisodeInput {
 
 export interface UpdateEpisodeInput {
   episode_id: string;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
   title?: string;
   description?: string;
   episode_nr?: number;
@@ -107,6 +117,13 @@ export interface UpdateEpisodeOutput {
 
 export interface DeleteEpisodeInput {
   episode_id: string;
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
+}
+
+export interface PodhomeAuthInput {
+  podhome_api_key?: string;
+  podhome_api_key_name?: string;
 }
 
 export type EpisodeStatus = 0 | 1 | 2 | 3 | 4 | 5;

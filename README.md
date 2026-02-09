@@ -22,8 +22,10 @@ npm install
 Create a `.env` file or export these variables:
 
 ```bash
-# Required - Podhome API
+# Required - Podhome API (choose one)
 export PODHOME_API_KEY="your_podhome_api_key"
+# or use named keys from a directory (filenames become key names)
+# export PODHOME_API_KEYS_DIR="/path/to/podhome/keys"
 
 # Optional - Podhome base URL (defaults to https://api.podhome.fm)
 export PODHOME_BASE_URL="https://api.podhome.fm"
@@ -94,26 +96,30 @@ Add the module to your NixOS configuration:
   
   services.podhome-mcp = {
     enable = true;
-    
-    # Required configuration
-    podhomeApiKey = "your-podhome-api-key";
-    cloudflareAccountId = "your-cloudflare-account-id";
-    cloudflareR2AccessKeyId = "your-r2-access-key";
-    cloudflareR2SecretAccessKey = "your-r2-secret-key";
+
+    # Required configuration (choose one Podhome key source)
+    # podhomeApiKey = "your-podhome-api-key";
+    podhomeApiKeysDir = "/path/to/podhome/keys";
+
+    # Required Cloudflare configuration (use file paths for secrets)
+    cloudflareAccountIdFile = "/path/to/cloudflare_account_id";
+    cloudflareR2AccessKeyIdFile = "/path/to/cloudflare_r2_access_key_id";
+    cloudflareR2SecretAccessKeyFile = "/path/to/cloudflare_r2_secret_access_key";
     
     # Optional configuration
     r2PublicDomain = "cdn.yourpodcast.com";
     podhomeBaseUrl = "https://api.podhome.fm";
     
     # HTTP server configuration (default: 127.0.0.1:3003)
+    # NixOS module always enables HTTP mode.
     port = 3003;
-    host = "127.0.0.1";
+    host = "0.0.0.0";
     
     # Logging
     logLevel = "info";  # Options: debug, info, warn, error
     
     # Security
-    openFirewall = false;  # Set to true to allow external access
+    openFirewall = true;  # Required for external access
   };
 }
 ```
@@ -128,12 +134,14 @@ Add the module to your NixOS configuration:
   # Enable the Podhome MCP service
   services.podhome-mcp = {
     enable = true;
-    
-    # API Keys (use proper secrets management in production!)
-    podhomeApiKey = "pk_live_xxxxxxxxxxxxxxxx";
-    cloudflareAccountId = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-    cloudflareR2AccessKeyId = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-    cloudflareR2SecretAccessKey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
+    # Podhome API keys (directory of key files)
+    podhomeApiKeysDir = "/path/to/podhome/keys";
+
+    # Cloudflare credentials (from secret files)
+    cloudflareAccountIdFile = "/path/to/cloudflare_account_id";
+    cloudflareR2AccessKeyIdFile = "/path/to/cloudflare_r2_access_key_id";
+    cloudflareR2SecretAccessKeyFile = "/path/to/cloudflare_r2_secret_access_key";
     
     # Custom domain for R2 public URLs
     r2PublicDomain = "audio.mypodcast.com";
@@ -308,6 +316,8 @@ Create a new episode draft in Podhome.
 **Input:**
 - `file_url` (string, required): Public R2/S3 URL
 - `title` (string, required): Episode title
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 - `description` (string, optional): Show notes
 - `episode_nr` (number, optional): Episode number
 - `season_nr` (number, optional): Season number
@@ -331,6 +341,8 @@ Publish or schedule an episode.
 
 **Input:**
 - `episode_id` (string, required): Episode UUID
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 - `publish_now` (boolean, optional): Default true
 - `publish_date` (string, optional): ISO-8601 UTC (if not publishing now)
 
@@ -346,6 +358,8 @@ List episodes with filtering.
 
 **Input:**
 - `status` (number, optional): 0=Draft, 1=Scheduled, 2=Published, 3=LivePending, 4=Live, 5=LiveEnded
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 - `include_transcript` (boolean, optional)
 - `include_chapters` (boolean, optional)
 - `include_downloads` (boolean, optional)
@@ -368,6 +382,8 @@ Get detailed episode information.
 
 **Input:**
 - `episode_id` (string, required): Episode UUID
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 - `include_transcript` (boolean, optional)
 - `include_chapters` (boolean, optional)
 - `include_downloads` (boolean, optional)
@@ -400,6 +416,8 @@ Update episode metadata.
 
 **Input:**
 - `episode_id` (string, required): Episode UUID
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 - `title` (string, optional)
 - `description` (string, optional)
 - `episode_nr` (number, optional)
@@ -418,6 +436,8 @@ Delete an episode.
 
 **Input:**
 - `episode_id` (string, required): Episode UUID
+- `podhome_api_key` (string, optional): Override API key for this request
+- `podhome_api_key_name` (string, optional): Select a named key from `PODHOME_API_KEYS`
 
 **Output:**
 ```
@@ -470,6 +490,7 @@ podhome.get_r2_public_url {
 podhome.create_episode {
   file_url: "https://cdn.mypodcast.com/episodes/episode-42.mp3",
   title: "Episode 42: The Future of AI",
+  podhome_api_key_name: "launch",
   description: "We discuss the latest in AI...",
   episode_nr: 42,
   season_nr: 1
@@ -539,15 +560,34 @@ podhome.publish_episode {
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PODHOME_API_KEY` | Yes | - | Podhome API key |
+| `PODHOME_API_KEY` | No | - | Podhome API key (single key) |
+| `PODHOME_API_KEY_FILE` | No | - | Path to a file containing a single Podhome API key |
+| `PODHOME_API_KEYS` | No | - | JSON object of named Podhome API keys |
+| `PODHOME_API_KEYS_FILE` | No | - | Path to JSON file containing named Podhome API keys |
+| `PODHOME_API_KEYS_DIR` | No | - | Directory of Podhome API key files (filename becomes key name) |
 | `PODHOME_BASE_URL` | No | `https://api.podhome.fm` | Podhome API base URL |
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | - | Cloudflare account ID |
-| `CLOUDFLARE_R2_ACCESS_KEY_ID` | Yes | - | R2 access key ID |
-| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Yes | - | R2 secret access key |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes* | - | Cloudflare account ID |
+| `CLOUDFLARE_ACCOUNT_ID_FILE` | Yes* | - | Path to file with Cloudflare account ID |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` | Yes* | - | R2 access key ID |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID_FILE` | Yes* | - | Path to file with R2 access key ID |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Yes* | - | R2 secret access key |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY_FILE` | Yes* | - | Path to file with R2 secret access key |
 | `R2_PUBLIC_DOMAIN` | No | - | Custom domain for R2 URLs |
 | `MCP_PORT` | No | - | HTTP server port (if set, runs in HTTP mode) |
 | `MCP_HOST` | No | `127.0.0.1` | HTTP server host address |
 | `LOG_LEVEL` | No | `info` | Log level: debug, info, warn, error |
+
+`*` For Cloudflare, set either the direct value or the corresponding `_FILE` variable.
+
+For Podhome, set one of `PODHOME_API_KEY`, `PODHOME_API_KEY_FILE`, `PODHOME_API_KEYS`, `PODHOME_API_KEYS_FILE`, or `PODHOME_API_KEYS_DIR`.
+
+Example `PODHOME_API_KEYS` value:
+```bash
+export PODHOME_API_KEYS='{"launch":"pk_live_xxx","lup_live":"pk_live_yyy","launchbootleg":"pk_live_zzz"}'
+```
+
+`PODHOME_API_KEYS_DIR` mapping: files in the directory become key names by filename without extension.
+Example: `/home/joe/openclaw/secrets/podhome/lup_live.key` -> `podhome_api_key_name: "lup_live"`.
 
 ### Server Modes
 
@@ -557,6 +597,8 @@ podhome.publish_episode {
 - `GET /health` - Health check endpoint
 - `GET /sse` - SSE endpoint for MCP communication
 - `POST /message` - Message endpoint for MCP communication
+
+**NixOS Module Behavior:** The NixOS module always sets `MCP_PORT` and `MCP_HOST`, so HTTP mode is always enabled when using `services.podhome-mcp`.
 
 Example HTTP mode usage:
 ```bash
@@ -582,12 +624,17 @@ For production deployments, avoid storing secrets directly in your Nix configura
     inputs.agenix.nixosModules.default
   ];
 
-  age.secrets.podhome-api-key.file = ../secrets/podhome-api-key.age;
-  age.secrets.r2-credentials.file = ../secrets/r2-credentials.age;
+  age.secrets.podhome-api-keys.file = ../secrets/podhome-api-keys.age;
+  age.secrets.cloudflare-account-id.file = ../secrets/cloudflare-account-id.age;
+  age.secrets.cloudflare-r2-access-key-id.file = ../secrets/cloudflare-r2-access-key-id.age;
+  age.secrets.cloudflare-r2-secret-access-key.file = ../secrets/cloudflare-r2-secret-access-key.age;
 
   services.podhome-mcp = {
     enable = true;
-    podhomeApiKeyFile = config.age.secrets.podhome-api-key.path;
+    podhomeApiKeysFile = config.age.secrets.podhome-api-keys.path;
+    cloudflareAccountIdFile = config.age.secrets.cloudflare-account-id.path;
+    cloudflareR2AccessKeyIdFile = config.age.secrets.cloudflare-r2-access-key-id.path;
+    cloudflareR2SecretAccessKeyFile = config.age.secrets.cloudflare-r2-secret-access-key.path;
     # ... other config
   };
 }
@@ -598,11 +645,17 @@ For production deployments, avoid storing secrets directly in your Nix configura
 ```nix
 { config, ... }:
 {
-  sops.secrets.podhome_api_key = {};
+  sops.secrets.podhome_api_keys = {};
+  sops.secrets.cloudflare_account_id = {};
+  sops.secrets.cloudflare_r2_access_key_id = {};
+  sops.secrets.cloudflare_r2_secret_access_key = {};
   
   services.podhome-mcp = {
     enable = true;
-    podhomeApiKey = config.sops.secrets.podhome_api_key.path;
+    podhomeApiKeysFile = config.sops.secrets.podhome_api_keys.path;
+    cloudflareAccountIdFile = config.sops.secrets.cloudflare_account_id.path;
+    cloudflareR2AccessKeyIdFile = config.sops.secrets.cloudflare_r2_access_key_id.path;
+    cloudflareR2SecretAccessKeyFile = config.sops.secrets.cloudflare_r2_secret_access_key.path;
     # ... other config
   };
 }

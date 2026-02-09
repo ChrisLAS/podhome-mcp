@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { formatEpisodesTable, validateEpisodeStatus } from '../utils.js';
+import { formatEpisodesTable, resolvePodhomeApiKey, validateEpisodeStatus } from '../utils.js';
 import type { ListEpisodesInput } from '../types.js';
 
 export const listEpisodesTool = {
@@ -11,6 +11,14 @@ export const listEpisodesTool = {
       status: {
         type: 'number',
         description: '0=Draft, 1=Scheduled, 2=Published, 3=LivePending, 4=Live, 5=LiveEnded'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       },
       include_transcript: {
         type: 'boolean'
@@ -41,7 +49,7 @@ export async function handleListEpisodes(args: ListEpisodesInput): Promise<{ con
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   const episodes = await client.listEpisodes(args);
 
   const table = formatEpisodesTable(episodes);

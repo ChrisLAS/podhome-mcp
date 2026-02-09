@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { validateUUID } from '../utils.js';
+import { resolvePodhomeApiKey, validateUUID } from '../utils.js';
 import type { DeleteEpisodeInput } from '../types.js';
 
 export const deleteEpisodeTool = {
@@ -11,6 +11,14 @@ export const deleteEpisodeTool = {
       episode_id: {
         type: 'string',
         description: 'UUID'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       }
     },
     required: ['episode_id']
@@ -30,7 +38,7 @@ export async function handleDeleteEpisode(args: DeleteEpisodeInput): Promise<{ c
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   await client.deleteEpisode(args.episode_id);
 
   return {

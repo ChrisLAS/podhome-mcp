@@ -1,5 +1,5 @@
 import { PodhomeClient } from '../clients/podhome.js';
-import { validateUUID } from '../utils.js';
+import { resolvePodhomeApiKey, validateUUID } from '../utils.js';
 import type { UpdateEpisodeInput, UpdateEpisodeOutput } from '../types.js';
 
 export const updateEpisodeTool = {
@@ -11,6 +11,14 @@ export const updateEpisodeTool = {
       episode_id: {
         type: 'string',
         description: 'UUID'
+      },
+      podhome_api_key: {
+        type: 'string',
+        description: 'Override the Podhome API key for this request'
+      },
+      podhome_api_key_name: {
+        type: 'string',
+        description: 'Select a named key from PODHOME_API_KEYS'
       },
       title: {
         type: 'string'
@@ -45,7 +53,7 @@ export async function handleUpdateEpisode(args: UpdateEpisodeInput): Promise<{ c
     };
   }
 
-  const client = new PodhomeClient();
+  const client = new PodhomeClient(resolvePodhomeApiKey(args));
   const result: UpdateEpisodeOutput = await client.updateEpisode(args);
 
   // Determine which fields were updated

@@ -9,7 +9,7 @@
 ### Key Components
 
 1. **MCP Server**: Exposes 7 tools for episode management (create, publish, list, get, update, delete, R2 URL resolution)
-2. **HTTP Server**: Optional HTTP mode with SSE transport (default port: 3003)
+2. **HTTP Server**: HTTP mode with SSE transport (enabled when `MCP_PORT` is set; NixOS module sets it by default). Default port: 3003
 3. **R2 Integration**: Connects to Cloudflare R2 (S3-compatible) to resolve public URLs
 4. **Nix Flake**: Complete Nix package + NixOS module for deployment
 
@@ -36,6 +36,7 @@ Before proceeding with any installation, request these credentials from the user
 - **How to get**: User logs into https://podhome.fm → Settings → API Keys
 - **Format**: String like `pk_live_xxxxxxxxxx` or `pk_test_xxxxxxxxxx`
 - **Permissions**: Needs episode management permissions
+ - **Multi-key**: If multiple shows are hosted, provide one key per show and choose via `podhome_api_key_name` at request time.
 
 #### 2. Cloudflare Account ID
 - **How to get**: https://dash.cloudflare.com → Right sidebar shows Account ID
@@ -111,11 +112,12 @@ In your NixOS configuration (e.g., `configuration.nix` or a separate module):
   services.podhome-mcp = {
     enable = true;
     
-    # Required credentials
-    podhomeApiKey = "USER_PROVIDED_KEY";
-    cloudflareAccountId = "USER_PROVIDED_ID";
-    cloudflareR2AccessKeyId = "USER_PROVIDED_KEY";
-    cloudflareR2SecretAccessKey = "USER_PROVIDED_SECRET";
+    # Required credentials (choose one Podhome key source)
+    # podhomeApiKey = "USER_PROVIDED_KEY";
+    podhomeApiKeysDir = "/path/to/podhome/keys";
+    cloudflareAccountIdFile = "/path/to/cloudflare_account_id";
+    cloudflareR2AccessKeyIdFile = "/path/to/cloudflare_r2_access_key_id";
+    cloudflareR2SecretAccessKeyFile = "/path/to/cloudflare_r2_secret_access_key";
     
     # Optional configuration
     r2PublicDomain = "cdn.userdomain.com";  # Optional
@@ -123,11 +125,11 @@ In your NixOS configuration (e.g., `configuration.nix` or a separate module):
     
     # HTTP server settings
     port = 3003;  # Default
-    host = "127.0.0.1";  # Default (localhost only)
+    host = "0.0.0.0";  # Listen on all interfaces
     logLevel = "info";  # Options: debug, info, warn, error
     
     # Security
-    openFirewall = false;  # Set to true to allow external access
+    openFirewall = true;  # Required for external access
     
     # Service user (defaults are fine)
     # user = "podhome-mcp";
@@ -168,6 +170,8 @@ nix profile install .
 
 # Run
 export PODHOME_API_KEY="USER_PROVIDED"
+# or use named keys from a directory
+# export PODHOME_API_KEYS_DIR="/path/to/podhome/keys"
 export CLOUDFLARE_ACCOUNT_ID="USER_PROVIDED"
 export CLOUDFLARE_R2_ACCESS_KEY_ID="USER_PROVIDED"
 export CLOUDFLARE_R2_SECRET_ACCESS_KEY="USER_PROVIDED"
@@ -210,15 +214,32 @@ npm run dev
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PODHOME_API_KEY` | Yes | - | Podhome API key |
+| `PODHOME_API_KEY` | No | - | Podhome API key (single key) |
+| `PODHOME_API_KEY_FILE` | No | - | Path to a file containing a single Podhome API key |
+| `PODHOME_API_KEYS` | No | - | JSON object of named Podhome API keys |
+| `PODHOME_API_KEYS_FILE` | No | - | Path to JSON file containing named Podhome API keys |
+| `PODHOME_API_KEYS_DIR` | No | - | Directory of Podhome API key files (filename becomes key name) |
 | `CLOUDFLARE_ACCOUNT_ID` | Yes | - | Cloudflare account ID |
+| `CLOUDFLARE_ACCOUNT_ID_FILE` | Yes* | - | Path to file with Cloudflare account ID |
 | `CLOUDFLARE_R2_ACCESS_KEY_ID` | Yes | - | R2 access key ID |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID_FILE` | Yes* | - | Path to file with R2 access key ID |
 | `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Yes | - | R2 secret access key |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY_FILE` | Yes* | - | Path to file with R2 secret access key |
 | `R2_PUBLIC_DOMAIN` | No | - | Custom domain for R2 URLs |
 | `PODHOME_BASE_URL` | No | `https://api.podhome.fm` | Podhome API base URL |
 | `MCP_PORT` | No | - | HTTP server port (if set, runs HTTP mode) |
 | `MCP_HOST` | No | `127.0.0.1` | HTTP server bind address |
 | `LOG_LEVEL` | No | `info` | Logging: debug, info, warn, error |
+
+`*` For Cloudflare, set either the direct value or the corresponding `_FILE` variable.
+
+Example `PODHOME_API_KEYS` value:
+```bash
+export PODHOME_API_KEYS='{"launch":"pk_live_xxx","lup_live":"pk_live_yyy","launchbootleg":"pk_live_zzz"}'
+```
+
+`PODHOME_API_KEYS_DIR` mapping: files in the directory become key names by filename without extension.
+Example: `/home/joe/openclaw/secrets/podhome/lup_live.key` -> `podhome_api_key_name: "lup_live"`.
 
 ### Service Modes
 
@@ -228,6 +249,8 @@ npm run dev
 - `GET /health` - Health check
 - `GET /sse` - SSE endpoint for MCP
 - `POST /message` - Message endpoint
+
+**NixOS Module Behavior**: The module always sets `MCP_PORT` and `MCP_HOST`, so HTTP mode is always enabled when using `services.podhome-mcp`.
 
 ## Troubleshooting Guide
 
@@ -313,12 +336,26 @@ When deploying to production, ensure:
 
 ```nix
 # Using agenix
-age.secrets.podhome-api-key.file = ../secrets/podhome-api-key.age;
-services.podhome-mcp.podhomeApiKeyFile = config.age.secrets.podhome-api-key.path;
+age.secrets.podhome-api-keys.file = ../secrets/podhome-api-keys.age;
+age.secrets.cloudflare-account-id.file = ../secrets/cloudflare-account-id.age;
+age.secrets.cloudflare-r2-access-key-id.file = ../secrets/cloudflare-r2-access-key-id.age;
+age.secrets.cloudflare-r2-secret-access-key.file = ../secrets/cloudflare-r2-secret-access-key.age;
+
+services.podhome-mcp.podhomeApiKeysFile = config.age.secrets.podhome-api-keys.path;
+services.podhome-mcp.cloudflareAccountIdFile = config.age.secrets.cloudflare-account-id.path;
+services.podhome-mcp.cloudflareR2AccessKeyIdFile = config.age.secrets.cloudflare-r2-access-key-id.path;
+services.podhome-mcp.cloudflareR2SecretAccessKeyFile = config.age.secrets.cloudflare-r2-secret-access-key.path;
 
 # Or using sops-nix
-sops.secrets.podhome_api_key = {};
-services.podhome-mcp.podhomeApiKey = config.sops.secrets.podhome_api_key.path;
+sops.secrets.podhome_api_keys = {};
+sops.secrets.cloudflare_account_id = {};
+sops.secrets.cloudflare_r2_access_key_id = {};
+sops.secrets.cloudflare_r2_secret_access_key = {};
+
+services.podhome-mcp.podhomeApiKeysFile = config.sops.secrets.podhome_api_keys.path;
+services.podhome-mcp.cloudflareAccountIdFile = config.sops.secrets.cloudflare_account_id.path;
+services.podhome-mcp.cloudflareR2AccessKeyIdFile = config.sops.secrets.cloudflare_r2_access_key_id.path;
+services.podhome-mcp.cloudflareR2SecretAccessKeyFile = config.sops.secrets.cloudflare_r2_secret_access_key.path;
 ```
 
 ### Network Security

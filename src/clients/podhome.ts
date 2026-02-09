@@ -8,18 +8,18 @@ import {
   UpdateEpisodeOutput,
   ListEpisodesInput
 } from '../types.js';
-import { fetchWithRetry, handleApiError } from '../utils.js';
+import { fetchWithRetry, handleApiError, resolvePodhomeApiKey } from '../utils.js';
 
 export class PodhomeClient {
   private apiKey: string;
   private baseUrl: string;
 
-  constructor() {
-    this.apiKey = process.env.PODHOME_API_KEY || '';
+  constructor(apiKey?: string) {
+    this.apiKey = apiKey || resolvePodhomeApiKey();
     this.baseUrl = process.env.PODHOME_BASE_URL || 'https://api.podhome.fm';
 
     if (!this.apiKey) {
-      throw new Error('PODHOME_API_KEY environment variable is required');
+      throw new Error('PODHOME_API_KEY (or PODHOME_API_KEYS) environment variable is required');
     }
   }
 

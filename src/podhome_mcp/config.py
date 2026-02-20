@@ -34,7 +34,7 @@ class Config(BaseSettings):
             except Exception as e:
                 raise ValueError(f"PODHOME_SHOWS must be valid JSON dict: {e}")
         if isinstance(v, dict):
-            return {k.strip(): SecretStr(str(v)) for k, v in v.items()}
+            return {k.strip(): SecretStr(str(value)) for k, value in v.items()}
         raise ValueError("PODHOME_SHOWS must be a JSON string or dict")
 
     def get_api_key(self, show: str) -> str:

@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from podhome_mcp.config import Config, load_config
+from podhome_mcp.config import Config
 from podhome_mcp.client import PodhomeClient
 
 

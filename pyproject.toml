@@ -1,0 +1,26 @@
+[project]
+name = "podhome-mcp"
+version = "0.1.0"
+description = "MCP server for the Podhome Integration API (multi-show support)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp",
+    "httpx",
+    "pydantic-settings",
+]
+
+[project.scripts]
+podhome-mcp = "podhome_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+    "respx",
+]
